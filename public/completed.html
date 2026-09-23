@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Completed — AVEN</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="topnav" id="nav"></div>
+
+<div class="container page">
+  <div class="page-header">
+    <div>
+      <h1>Completed</h1>
+      <p>Everything you've finished. Rate a book to fine-tune your insights.</p>
+    </div>
+  </div>
+
+  <div class="book-grid" id="book-grid">
+    <div class="loading-row">Loading…</div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/covers.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/cards.js"></script>
+<script>
+  requireAuth();
+  renderNav('/completed.html');
+
+  const grid = document.getElementById('book-grid');
+
+  function starsHTML(bookId, rating) {
+    let html = '<div class="star-rating">';
+    for (let i = 1; i <= 5; i++) {
+      html += `<button data-rate-book="${bookId}" data-rate-value="${i}" class="${i <= (rating || 0) ? 'filled' : ''}">★</button>`;
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function cardHTML(b) {
+    const id = b.book_id || b.id;
+    return `
+      <div class="book-card" data-book-id="${id}">
+        <div class="book-cover-wrap" data-action="view" data-book-id="${id}">${placeholderCoverHTML(b.title)}</div>
+        <div class="book-info">
+          <span class="genre-tag">${escapeHtml(b.genre)}</span>
+          <div class="title" data-action="view" data-book-id="${id}">${escapeHtml(b.title)}</div>
+          <div class="author">${escapeHtml(b.author)}</div>
+          <div class="meta">${b.pages} pages • ${b.publication_year}</div>
+          ${starsHTML(id, b.rating)}
+          <div class="actions">
+            <button class="btn btn-danger btn-sm" data-action="remove" data-book-id="${id}">Remove</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function load() {
+    try {
+      const { books } = await apiFetch('/user-books?status=COMPLETED');
+      if (!books.length) {
+        grid.innerHTML = `<div class="empty-state"><div class="icon">🏁</div><h3>No finished books yet</h3><p>Books you complete will collect here.</p></div>`;
+        return;
+      }
+      grid.innerHTML = books.map(cardHTML).join('');
+      grid.querySelectorAll('.book-cover-wrap').forEach(el => {
+        const card = el.closest('.book-card');
+        const title = card.querySelector('.title').textContent;
+        const author = card.querySelector('.author').textContent;
+        mountCover(el, title, author);
+      });
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  grid.addEventListener('click', async (e) => {
+    const starBtn = e.target.closest('[data-rate-book]');
+    if (starBtn) {
+      try {
+        await apiFetch(`/user-books/${starBtn.dataset.rateBook}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ rating: parseInt(starBtn.dataset.rateValue, 10) })
+        });
+        load();
+      } catch (err) { showToast(err.message); }
+      return;
+    }
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    if (target.dataset.action === 'view') {
+      openBookModal(target.dataset.bookId, load);
+      return;
+    }
+    const handled = await handleBookAction(target.dataset.action, target.dataset.bookId);
+    if (handled) load();
+  });
+
+  load();
+</script>
+</body>
+</html>

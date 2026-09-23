@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Currently Reading — AVEN</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="topnav" id="nav"></div>
+
+<div class="container page">
+  <div class="page-header">
+    <div>
+      <h1>Currently Reading</h1>
+      <p>Update your progress as you go.</p>
+    </div>
+  </div>
+
+  <div id="reading-list">
+    <div class="loading-row">Loading…</div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/covers.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/cards.js"></script>
+<script>
+  requireAuth();
+  renderNav('/reading.html');
+
+  const list = document.getElementById('reading-list');
+
+  function cardHTML(b) {
+    const pct = Math.min(100, Math.round((b.pages_read / b.pages) * 100)) || 0;
+    return `
+      <div class="reading-card" data-book-id="${b.book_id}">
+        <div class="mini-cover">${placeholderCoverHTML(b.title)}</div>
+        <div>
+          <span class="genre-tag">${escapeHtml(b.genre)}</span>
+          <h3 style="margin:8px 0 2px;">${escapeHtml(b.title)}</h3>
+          <div class="author">${escapeHtml(b.author)}</div>
+          <div class="progress-track" style="margin-top:12px;"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div class="progress-label">${b.pages_read} / ${b.pages} pages · ${pct}%</div>
+          <div class="pages-update-row">
+            <input type="number" min="0" max="${b.pages}" value="${b.pages_read}" data-pages-input="${b.book_id}">
+            <button class="btn btn-secondary btn-sm" data-action="update-pages" data-book-id="${b.book_id}">Update progress</button>
+            <button class="btn btn-primary btn-sm" data-action="mark-completed" data-book-id="${b.book_id}">Mark Completed</button>
+            <button class="btn btn-danger btn-sm" data-action="remove" data-book-id="${b.book_id}">Remove</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function load() {
+    try {
+      const { books } = await apiFetch('/user-books?status=READING');
+      if (!books.length) {
+        list.innerHTML = `<div class="empty-state"><div class="icon">📗</div><h3>Nothing in progress</h3><p>Move a book from your TBR to start tracking it here.</p></div>`;
+        return;
+      }
+      list.innerHTML = books.map(cardHTML).join('');
+      list.querySelectorAll('.mini-cover').forEach(el => {
+        const card = el.closest('.reading-card');
+        const title = card.querySelector('h3').textContent;
+        const author = card.querySelector('.author').textContent;
+        mountCover(el, title, author);
+      });
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  list.addEventListener('click', async (e) => {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+    const bookId = target.dataset.bookId;
+
+    if (action === 'update-pages') {
+      const input = list.querySelector(`[data-pages-input="${bookId}"]`);
+      const pages = parseInt(input.value, 10) || 0;
+      try {
+        await apiFetch(`/user-books/${bookId}`, { method: 'PATCH', body: JSON.stringify({ pages_read: pages }) });
+        showToast('Progress updated');
+        load();
+      } catch (err) { showToast(err.message); }
+      return;
+    }
+    const handled = await handleBookAction(action, bookId);
+    if (handled) load();
+  });
+
+  load();
+</script>
+</body>
+</html>

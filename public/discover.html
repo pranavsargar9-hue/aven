@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discover — AVEN</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="topnav" id="nav"></div>
+
+<div class="container page">
+  <div class="page-header">
+    <div>
+      <h1>Discover</h1>
+      <p>Browse the full catalog and add anything that catches your eye.</p>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <select id="genre-filter">
+      <option value="">All genres</option>
+    </select>
+    <input type="text" id="search-input" placeholder="Search by title or author…">
+  </div>
+
+  <div class="book-grid" id="book-grid">
+    <div class="loading-row">Loading the catalog…</div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/covers.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/cards.js"></script>
+<script>
+  requireAuth();
+  renderNav('/discover.html');
+
+  const grid = document.getElementById('book-grid');
+  const genreFilter = document.getElementById('genre-filter');
+  const searchInput = document.getElementById('search-input');
+  attachBookGridEvents(grid, load);
+
+  async function loadGenres() {
+    try {
+      const { genres } = await apiFetch('/books/genres');
+      genreFilter.innerHTML = '<option value="">All genres</option>' +
+        genres.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
+    } catch (err) { showToast(err.message); }
+  }
+
+  let searchTimer;
+  async function load() {
+    const params = new URLSearchParams();
+    if (genreFilter.value) params.set('genre', genreFilter.value);
+    if (searchInput.value.trim()) params.set('search', searchInput.value.trim());
+
+    try {
+      const { books } = await apiFetch('/books?' + params.toString());
+      renderBookGrid(grid, books, 'discover');
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  genreFilter.addEventListener('change', load);
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(load, 300);
+  });
+
+  loadGenres();
+  load();
+</script>
+</body>
+</html>

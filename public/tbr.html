@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My TBR — AVEN</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="topnav" id="nav"></div>
+
+<div class="container page">
+  <div class="page-header">
+    <div>
+      <h1>Want to Read</h1>
+      <p>Books you've set aside for later.</p>
+    </div>
+  </div>
+
+  <div class="book-grid" id="book-grid">
+    <div class="loading-row">Loading your list…</div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/covers.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/cards.js"></script>
+<script>
+  requireAuth();
+  renderNav('/tbr.html');
+
+  const grid = document.getElementById('book-grid');
+  attachBookGridEvents(grid, load);
+
+  async function load() {
+    try {
+      const { books } = await apiFetch('/user-books?status=TBR');
+      renderBookGrid(grid, books, 'tbr');
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>

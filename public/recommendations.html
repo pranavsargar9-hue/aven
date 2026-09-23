@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recommendations — AVEN</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="topnav" id="nav"></div>
+
+<div class="container page">
+  <div class="page-header">
+    <div>
+      <h1>Recommendations</h1>
+      <p>Pick a genre and we'll pull matching books from the catalog.</p>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <select id="genre-select">
+      <option value="">Select Genre</option>
+    </select>
+    <button class="btn btn-primary" id="find-btn">Find Recommendations</button>
+  </div>
+
+  <div class="book-grid" id="book-grid"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/covers.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/cards.js"></script>
+<script>
+  requireAuth();
+  renderNav('/recommendations.html');
+
+  const grid = document.getElementById('book-grid');
+  const genreSelect = document.getElementById('genre-select');
+  attachBookGridEvents(grid, runSearch);
+
+  async function loadGenres() {
+    try {
+      const { genres } = await apiFetch('/books/genres');
+      genreSelect.innerHTML = '<option value="">Select Genre</option>' +
+        genres.map(g => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`).join('');
+    } catch (err) { showToast(err.message); }
+  }
+
+  async function runSearch() {
+    if (!genreSelect.value) {
+      grid.innerHTML = `<div class="empty-state"><div class="icon">🔮</div><h3>Choose a genre to begin</h3><p>We'll surface books from the catalog that match.</p></div>`;
+      return;
+    }
+    try {
+      const { books } = await apiFetch('/recommendations?genre=' + encodeURIComponent(genreSelect.value));
+      renderBookGrid(grid, books, 'recommendation');
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  document.getElementById('find-btn').addEventListener('click', runSearch);
+  loadGenres();
+  runSearch();
+</script>
+</body>
+</html>

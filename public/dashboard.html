@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — AVEN</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="topnav" id="nav"></div>
+
+<div class="container page">
+  <div class="page-header">
+    <div>
+      <h1 id="greeting">Welcome back</h1>
+      <p>Here's where your reading stands today.</p>
+    </div>
+  </div>
+
+  <div class="stat-grid" id="stat-grid">
+    <div class="loading-row">Loading your stats…</div>
+  </div>
+
+  <div class="section-title">
+    <h2>Currently Reading</h2>
+    <a href="/reading.html" class="btn btn-ghost btn-sm">View all</a>
+  </div>
+  <div class="book-grid" id="reading-grid"></div>
+
+  <div class="section-title">
+    <h2>Recently Completed</h2>
+    <a href="/completed.html" class="btn btn-ghost btn-sm">View all</a>
+  </div>
+  <div class="book-grid" id="completed-grid"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/covers.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/cards.js"></script>
+<script>
+  requireAuth();
+  renderNav('/dashboard.html');
+
+  const user = getCurrentUser();
+  if (user) document.getElementById('greeting').textContent = `Welcome back, ${user.name.split(' ')[0]}`;
+
+  async function load() {
+    try {
+      const stats = await apiFetch('/user-books/stats/dashboard');
+
+      document.getElementById('stat-grid').innerHTML = `
+        <div class="stat-card">
+          <div class="stat-label">Books Read</div>
+          <div class="stat-value">${stats.booksRead}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Currently Reading</div>
+          <div class="stat-value">${stats.currentlyReading}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">My TBR</div>
+          <div class="stat-value">${stats.tbr}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Reading Streak</div>
+          <div class="stat-value">${stats.streak}<span style="font-size:1rem;"> ${stats.streak === 1 ? 'day' : 'days'}</span></div>
+        </div>
+      `;
+
+      const readingGrid = document.getElementById('reading-grid');
+      if (stats.currentlyReadingBooks.length) {
+        readingGrid.innerHTML = stats.currentlyReadingBooks.map(b => {
+          const pct = Math.min(100, Math.round((b.pages_read / b.pages) * 100)) || 0;
+          return `
+            <div class="book-card">
+              <div class="book-cover-wrap">${placeholderCoverHTML(b.title)}</div>
+              <div class="book-info">
+                <span class="genre-tag">${escapeHtml(b.genre)}</span>
+                <div class="title">${escapeHtml(b.title)}</div>
+                <div class="author">${escapeHtml(b.author)}</div>
+                <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+                <div class="progress-label">${pct}% complete</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        readingGrid.querySelectorAll('.book-cover-wrap').forEach((el, i) => {
+          mountCover(el, stats.currentlyReadingBooks[i].title, stats.currentlyReadingBooks[i].author);
+        });
+      } else {
+        readingGrid.innerHTML = `<div class="empty-state"><div class="icon">📗</div><h3>Nothing in progress</h3><p>Start a book from your TBR to see it here.</p></div>`;
+      }
+
+      const completedGrid = document.getElementById('completed-grid');
+      if (stats.recentlyCompleted.length) {
+        renderBookGrid(completedGrid, stats.recentlyCompleted, 'display-only');
+      } else {
+        completedGrid.innerHTML = `<div class="empty-state"><div class="icon">🏁</div><h3>No finished books yet</h3><p>Once you complete a book, it will show up here.</p></div>`;
+      }
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>

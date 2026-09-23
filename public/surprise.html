@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Surprise Me — AVEN</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="topnav" id="nav"></div>
+
+<div class="container page">
+  <div class="surprise-hero">
+    <div class="eyebrow" style="color:var(--rose);text-transform:uppercase;letter-spacing:0.18em;font-size:0.78rem;font-weight:700;margin-bottom:16px;">A little serendipity</div>
+    <h1>Your next read might be…</h1>
+    <p style="max-width:420px;margin:0 auto 30px;">Click the dice and we'll pull something at random from the whole catalog.</p>
+
+    <div class="surprise-card" id="surprise-card" style="display:none;">
+      <div class="mini-cover-wrap" id="surprise-cover"></div>
+      <span class="genre-tag" id="surprise-genre"></span>
+      <h2 id="surprise-title" style="margin-top:10px;"></h2>
+      <div class="author" id="surprise-author" style="margin-bottom:14px;"></div>
+      <p id="surprise-desc" style="font-size:0.92rem;"></p>
+      <div class="modal-actions" style="justify-content:center;">
+        <button class="btn btn-primary" id="add-tbr-btn">Add to TBR</button>
+        <button class="btn btn-secondary" id="details-btn">Read Details</button>
+      </div>
+    </div>
+
+    <div style="margin-top:34px;">
+      <button class="btn btn-primary" id="roll-btn" style="font-size:1.05rem;padding:16px 32px;">🎲 Surprise Me</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/covers.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/cards.js"></script>
+<script>
+  requireAuth();
+  renderNav('/surprise.html');
+
+  let currentBook = null;
+  const card = document.getElementById('surprise-card');
+  const rollBtn = document.getElementById('roll-btn');
+
+  async function roll() {
+    rollBtn.disabled = true;
+    rollBtn.textContent = 'Rolling…';
+    try {
+      const { book } = await apiFetch('/books/random');
+      currentBook = book;
+
+      document.getElementById('surprise-cover').innerHTML = placeholderCoverHTML(book.title);
+      mountCover(document.getElementById('surprise-cover'), book.title, book.author);
+      document.getElementById('surprise-genre').textContent = book.genre;
+      document.getElementById('surprise-title').textContent = book.title;
+      document.getElementById('surprise-author').textContent = book.author;
+      document.getElementById('surprise-desc').textContent = book.description;
+      card.style.display = 'block';
+    } catch (err) {
+      showToast(err.message);
+    } finally {
+      rollBtn.disabled = false;
+      rollBtn.textContent = '🎲 Surprise Me';
+    }
+  }
+
+  document.getElementById('add-tbr-btn').addEventListener('click', async () => {
+    if (!currentBook) return;
+    const handled = await handleBookAction('add-tbr', currentBook.id);
+    if (!handled) return;
+  });
+
+  document.getElementById('details-btn').addEventListener('click', () => {
+    if (currentBook) openBookModal(currentBook.id);
+  });
+
+  rollBtn.addEventListener('click', roll);
+</script>
+</body>
+</html>

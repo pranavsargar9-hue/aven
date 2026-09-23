@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insights — AVEN</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div class="topnav" id="nav"></div>
+
+<div class="container page">
+  <div class="page-header">
+    <div>
+      <h1>Insights</h1>
+      <p>A look at your reading, built entirely from your own history.</p>
+    </div>
+  </div>
+
+  <div class="insights-highlight" id="highlight">
+    <div>
+      <div class="stat-label">Pages Read</div>
+      <div class="stat-value">—</div>
+    </div>
+    <div>
+      <div class="stat-label">Favorite Genre</div>
+      <div class="stat-value">—</div>
+    </div>
+    <div>
+      <div class="stat-label">Average Rating</div>
+      <div class="stat-value">—</div>
+    </div>
+  </div>
+
+  <div class="stat-grid" id="stat-grid">
+    <div class="loading-row">Loading your insights…</div>
+  </div>
+
+  <div class="section-title"><h2>Genres You've Completed</h2></div>
+  <div id="genre-breakdown"></div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script>
+  requireAuth();
+  renderNav('/insights.html');
+
+  async function load() {
+    try {
+      const data = await apiFetch('/user-books/stats/insights');
+
+      document.getElementById('highlight').innerHTML = `
+        <div>
+          <div class="stat-label">Pages Read</div>
+          <div class="stat-value">${data.pagesRead.toLocaleString()}</div>
+        </div>
+        <div>
+          <div class="stat-label">Favorite Genre</div>
+          <div class="stat-value" style="font-size:1.6rem;">${data.favoriteGenre ? escapeHtml(data.favoriteGenre) : '—'}</div>
+        </div>
+        <div>
+          <div class="stat-label">Average Rating</div>
+          <div class="stat-value">${data.averageRating !== null ? data.averageRating.toFixed(1) : '—'}</div>
+        </div>
+      `;
+
+      document.getElementById('stat-grid').innerHTML = `
+        <div class="stat-card">
+          <div class="stat-label">Books Read</div>
+          <div class="stat-value">${data.booksRead}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Currently Reading</div>
+          <div class="stat-value">${data.currentlyReading}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">TBR</div>
+          <div class="stat-value">${data.tbr}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total on Shelf</div>
+          <div class="stat-value">${data.booksRead + data.currentlyReading + data.tbr}</div>
+        </div>
+      `;
+
+      const breakdownEl = document.getElementById('genre-breakdown');
+      if (!data.genreBreakdown.length) {
+        breakdownEl.innerHTML = `<div class="empty-state"><div class="icon">📈</div><h3>Not enough data yet</h3><p>Complete a few books and your genre breakdown will appear here.</p></div>`;
+      } else {
+        const max = Math.max(...data.genreBreakdown.map(g => g.cnt));
+        breakdownEl.innerHTML = data.genreBreakdown.map(g => `
+          <div class="genre-bar-row">
+            <div class="genre-name">${escapeHtml(g.genre)}</div>
+            <div class="genre-bar-track"><div class="genre-bar-fill" style="width:${(g.cnt / max) * 100}%"></div></div>
+            <div class="genre-bar-count">${g.cnt}</div>
+          </div>
+        `).join('');
+      }
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>
